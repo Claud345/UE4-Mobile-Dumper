@@ -1,14 +1,14 @@
-name: Build and Auto-Commit Libs
+name: Normal Android Studio Build
 
 on:
-  workflow_dispatch: # Allows you to start it manually
+  workflow_dispatch: # Allows you to trigger the build manually
 
 jobs:
-  build_and_push:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Allows the action to push code
-    
+      contents: write # Needed to push the files back to your repo
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -24,22 +24,24 @@ jobs:
         with:
           ndk-version: r25b
 
-      - name: Build with Gradle
+      - name: Standard Gradle Build
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Prepare Release Folder
+      - name: Organize Output
         run: |
-          mkdir -p build_output/libs
-          # Copy the compiled .so files
-          cp -r app/src/main/jni/libs/* build_output/libs/ || true
-          # Find and copy the generated DEX file
-          find app/build -name "*.dex" -exec cp {} build_output/ \; || true
+          mkdir -p Android_Studio_Build
+          # 1. Copy the APK (The main build result)
+          cp app/build/outputs/apk/debug/app-debug.apk Android_Studio_Build/ || true
+          
+          # 2. Copy the final JNI Libs (What you need for the game)
+          # This pulls from the final output folder Android Studio uses
+          mkdir -p Android_Studio_Build/libs
+          cp -r app/src/main/jni/libs/* Android_Studio_Build/libs/ || true
 
-      - name: Commit and Push Changes
+      - name: Push Build Results to Repo
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Automatic Build: Added JNI Libs and DEX [skip ci]"
-          file_pattern: 'build_output/*'
-          branch: main # Change to your branch name if different
+          commit_message: "Normal Build Completed: APK and Libs included [skip ci]"
+          file_pattern: 'Android_Studio_Build/*'
