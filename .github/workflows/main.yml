@@ -1,9 +1,16 @@
-name: Build JNI Only
-on: [push, pull_request, workflow_dispatch]
+name: Build JNI Libraries
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # Allows you to run it manually from the Actions tab
 
 jobs:
   build_jni:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -13,26 +20,27 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: gradle
 
       - name: Set up Android NDK
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r25b
+          ndk-version: r25b # Standard for modern ARM64 builds
 
       - name: Grant Execute Permission
         run: chmod +x gradlew
 
-      - name: Compile JNI Libraries
+      - name: Build Project
         run: ./gradlew assembleDebug
-        # Even if we don't want the APK, this is the safest way to 
-        # trigger the NDK build with all project dependencies.
+        # This triggers the C++ compilation (ndk-build/cmake)
 
-      - name: Upload JNI Directory Structure
+      - name: Upload JNI Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: JNI-Compiled-Libs
-          # This captures the exact directory structure you need
+          name: JNI-Compiled-Libs-arm64
+          # The double asterisks (**) tell GitHub to search every subfolder
           path: |
-            app/src/main/jni/libs/
-            app/build/intermediates/cmake/debug/obj/
-            
+            **/build/intermediates/**/*.so
+            **/src/main/jni/libs/arm64-v8a/*.so
+          if-no-files-found: error
+          
