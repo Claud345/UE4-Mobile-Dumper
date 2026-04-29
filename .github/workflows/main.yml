@@ -1,0 +1,38 @@
+name: Build JNI Only
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  build_jni:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r25b
+
+      - name: Grant Execute Permission
+        run: chmod +x gradlew
+
+      - name: Compile JNI Libraries
+        run: ./gradlew assembleDebug
+        # Even if we don't want the APK, this is the safest way to 
+        # trigger the NDK build with all project dependencies.
+
+      - name: Upload JNI Directory Structure
+        uses: actions/upload-artifact@v4
+        with:
+          name: JNI-Compiled-Libs
+          # This captures the exact directory structure you need
+          path: |
+            app/src/main/jni/libs/
+            app/build/intermediates/cmake/debug/obj/
+            
