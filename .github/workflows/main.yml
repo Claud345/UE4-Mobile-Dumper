@@ -1,16 +1,14 @@
-name: Build JNI Libraries
+name: Build and Auto-Commit Libs
 
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch: # Allows you to run it manually from the Actions tab
+  workflow_dispatch: # Allows you to start it manually
 
 jobs:
-  build_jni:
+  build_and_push:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write # Allows the action to push code
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -20,27 +18,29 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
       - name: Set up Android NDK
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r25b # Standard for modern ARM64 builds
+          ndk-version: r25b
 
-      - name: Grant Execute Permission
-        run: chmod +x gradlew
+      - name: Build with Gradle
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
-      - name: Build Project
-        run: ./gradlew assembleDebug
-        # This triggers the C++ compilation (ndk-build/cmake)
+      - name: Prepare Release Folder
+        run: |
+          mkdir -p build_output/libs
+          # Copy the compiled .so files
+          cp -r app/src/main/jni/libs/* build_output/libs/ || true
+          # Find and copy the generated DEX file
+          find app/build -name "*.dex" -exec cp {} build_output/ \; || true
 
-      - name: Upload JNI Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Commit and Push Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          name: JNI-Compiled-Libs-arm64
-          # The double asterisks (**) tell GitHub to search every subfolder
-          path: |
-            **/build/intermediates/**/*.so
-            **/src/main/jni/libs/arm64-v8a/*.so
-          if-no-files-found: error
+          commit_message: "Automatic Build: Added JNI Libs and DEX [skip ci]"
+          file_pattern: 'build_output/*'
+          branch: main # Change to your branch name if different
           
